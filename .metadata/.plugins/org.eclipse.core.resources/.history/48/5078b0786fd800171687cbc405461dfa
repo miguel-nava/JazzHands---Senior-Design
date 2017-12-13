@@ -1,0 +1,370 @@
+import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.lang.reflect.Array;
+/*
+import gnu.io.CommPortIdentifier; 
+import gnu.io.SerialPort;
+import gnu.io.SerialPortEvent; 
+import gnu.io.SerialPortEventListener;
+*/
+import java.util.Enumeration;
+import java.util.concurrent.TimeUnit;
+//import com.sun.jndi.url.iiopname.iiopnameURLContextFactory;
+import javax.swing.JOptionPane;
+import arduino.*;
+
+
+public class lefthand {
+	// input : xRate, yRate, zRate, leftClick, rightClick, mouseLock, recenter
+	static int oldcopy = 0;
+	static int oldpaste = 0;
+	static int oldredo = 0;
+	static int oldundo = 0;
+	static int oldgroup = 0;
+	static int oldungroup = 0;
+	static int oldduplicate = 0;
+	static int oldlock = 0;
+	static int oldselectAll = 0;
+    static int olddelete = 0;
+    static int oldfitView = 0;
+    static int oldDrop = 0;
+    static int oldworkplane = 0;
+    static int oldruler = 0;
+	
+    static Arduino nano = new Arduino("COM15", 9600);
+    static String input[] = {
+		
+			"4500000100", 
+			"0000000000"		
+	};
+    public static void main(String[] args) throws Exception {
+
+	    /*
+	     *  two plus two is two is four,
+	     *  minus one is three, quick maths 
+	    */
+
+
+		TimeUnit.SECONDS.sleep(3); 
+		for (String line: input){
+			System.out.println(line);
+			left_hand(line);
+		}
+		
+		
+		/*if (nano.openConnection()){
+			System.out.println("Connection established");
+			for(int j = 0; j < 1000; j++){
+				String data = nano.serialRead();
+	    		String lines[] = data.split("\\r?\\n");
+	    		
+	    		System.out.println(lines[Array.getLength(lines)-1]);
+	    		for(String line : lines){
+	    			left_hand(line);
+	    		}
+			}
+		}
+		nano.closeConnection();*/
+		
+	}
+	
+	// takes in a string containing the three data points and operates the mouse in turn
+    public static void left_hand(String data) throws AWTException
+    {
+    	if(data.length() != 10) return;
+        Robot robot = new Robot();
+        
+		String xR = data.substring(0,2);
+		String yR = data.substring(2,4);
+		String zR = data.substring(4,6);
+		 
+		
+        int xRate = Integer.parseInt(xR);
+        int yRate = Integer.parseInt(yR);
+        int zRate = Integer.parseInt(zR);
+        
+        //get 0/1 for each of the 4 buttons to indicate whether they are pushed (receive 1) or not (return 0)
+        int index = Character.getNumericValue(data.charAt(6)); 
+        int middle = Character.getNumericValue(data.charAt(7));
+        int ring = Character.getNumericValue(data.charAt(8));
+        int pinky = Character.getNumericValue(data.charAt(9));
+        
+       /*
+        // Keys for macro commands
+        if(copy == 1 && oldcopy == 0){
+        	Tinker.copy(robot);
+        	oldcopy = 1;
+        } else
+        if(copy == 0 && oldcopy == 1){
+        	oldcopy = 0;
+        }
+        
+        if(paste == 1 && oldpaste == 0){
+        	Tinker.paste(robot);
+        	oldpaste = 1;
+        } else
+        if(paste == 0 && oldpaste == 1){
+        	oldpaste = 0;
+        }
+        
+        if(undo == 1 && oldundo == 0){
+        	Tinker.undo(robot);
+        	oldundo = 1;
+        } else
+        if(undo == 0 && oldundo == 1){
+        	oldundo = 0;
+        }
+        
+        if(selectAll == 1 && oldselectAll == 0){
+        	Tinker.selectAll(robot);
+        	oldselectAll = 1;
+        } else
+        if(selectAll == 1 && oldselectAll == 0){
+        	oldselectAll = 1;
+        }
+        */
+        
+        // Second option for pushing buttons
+        // index => copy
+        if (middle == 1){
+        	int dir = direction(xRate, yRate);
+        	switch(dir){ 
+        	case 0:			// if left turn paste
+            	if (xRate > 85 && oldpaste == 0){//works
+            		Tinker.paste(robot);
+            		oldpaste = 1;
+            		oldcopy = 0;
+            		oldundo = 0;
+            		oldredo = 0;
+            	}
+        		break;
+        	case 1:// if right turn copy
+            	if (xRate > 30 && xRate < 50 && oldcopy == 0){//works
+            		Tinker.copy(robot);
+            		oldcopy = 1;
+            		oldpaste = 0;
+            		oldundo = 0;
+            		oldredo = 0;
+            	}  
+        		break;
+        		
+        	case 2:   //if Down undo
+        		if (yRate > 85 && oldundo == 0){//works
+            		Tinker.undo(robot);
+            		oldundo = 1;
+            		oldpaste = 0;
+            		oldcopy = 0;
+            		oldredo = 0;
+            	}
+        		break;
+        		
+        	case 3: // if up redo
+    			if (yRate > 30 && yRate < 50 && oldredo == 0){ //works
+            		Tinker.redo(robot);
+            		oldredo = 1;
+            		oldcopy = 0;
+            		oldpaste = 0;
+            		oldundo = 0;
+            	}
+        		break;
+        	}
+        	
+        	/*
+        	// determine which action to take by checking which is bigger
+        	if (xRate > 49 && yRate > 49 ){
+        		if (xRate > yRate){
+        			// if left turn paste
+                	if (xRate > 80 && oldpaste == 0){
+                		Tinker.paste(robot);
+                		oldpaste = 1;
+                		oldcopy = 0;
+                		oldundo = 0;
+                	}
+        		} else {
+                	// if up undo
+        			if (yRate > 15 && yRate < 50 && oldundo == 0){
+                		Tinker.undo(robot);
+                		oldundo = 1;
+                		oldcopy = 0;
+                		oldpaste = 0;
+                	}
+        		}
+        	}
+        	
+        	if (xRate < 50 && yRate < 50){
+        		if(xRate > yRate){
+        			// if right turn copy
+                	if (xRate > 30 && xRate < 50 && oldcopy == 0){
+                		Tinker.copy(robot);
+                		oldcopy = 1;
+                		oldpaste = 0;
+                		oldundo = 0;
+                	}
+        		} 
+        	}*/
+        		
+        } else if(middle == 0){
+            oldpaste = 0;
+        	oldcopy = 0;
+        	oldundo = 0;
+        	oldredo = 0; 
+        }
+        
+        
+        if ( index == 1){ 
+        	int dir = direction(xRate, yRate);
+        	switch(dir){ 	
+        	case 0:			// if left turn group 
+            	if (xRate > 85 && oldgroup == 0){ //works
+            		Tinker.group(robot);
+            		oldgroup = 1;
+            		oldungroup = 0;
+            		oldduplicate = 0;
+            		oldlock = 0;
+            	}
+        		break;
+        		
+        	case 1:// if right turn ungroup
+            	if (xRate > 30 && xRate < 50 && oldungroup == 0){ //works
+            		Tinker.ungroup(robot);
+            		oldungroup = 1;
+            		oldgroup = 0;
+            		oldduplicate = 0;
+            		oldlock = 0;
+            	}  
+        		break;
+        		
+        	case 2:   //if Down duplicate
+        		if (yRate > 85 && oldduplicate == 0){ //works
+            		Tinker.duplicate(robot);
+            		oldduplicate = 1;
+            		oldgroup = 0;
+            		oldungroup = 0;
+            		oldlock = 0;
+            	}
+        		break;
+        		
+        	case 3: // if up lock
+    			if (yRate > 30 && yRate < 50 && oldlock == 0){//works
+            		Tinker.lock(robot);
+            		oldlock = 1;
+            		oldduplicate = 0;
+            		oldgroup = 0;
+            		oldungroup = 0;
+            	}
+        		break;
+        	}        		
+        } else if(index == 0){
+        	oldlock = 0;
+    		oldduplicate = 0;
+    		oldgroup = 0;
+    		oldungroup = 0;
+        }
+        
+        // ring
+        if ( ring == 1){ 
+        	int dir = direction(xRate, yRate);
+        	switch(dir){ 	
+        	case 0:			// if left turn selectAll 
+            	if (xRate > 85 && oldselectAll == 0){ //works
+            		Tinker.selectAll(robot);
+            		oldselectAll = 1;
+            		olddelete = 0;
+            		oldfitView = 0;
+            		oldDrop = 0;
+            	}
+        		break;
+        		
+        	case 1:// if right turn delete
+            	if (xRate > 30 && xRate < 50 && olddelete == 0){ //works
+            		Tinker.delete(robot);
+            		olddelete = 1;
+            		oldselectAll = 0;
+            		oldfitView = 0;
+            		oldDrop = 0;
+            	}  
+        		break;
+        	case 2:   //if Down fitView
+        		if (yRate > 85 && oldfitView == 0){ //works
+            		Tinker.fitView(robot);
+            		oldfitView = 1;
+            		olddelete = 0;
+            		oldselectAll = 0;
+            		oldDrop = 0;
+            	}
+        		break;
+        		
+        	case 3: // if up Drop
+    			if (yRate > 30 && yRate < 50 && oldDrop == 0){ //woks
+            		Tinker.Drop(robot);
+            		oldDrop = 1;
+            		oldfitView = 0;
+            		olddelete = 0;
+            		oldselectAll = 0;
+            	}
+        		break;
+        	}
+        	        		
+        } else if(ring == 0){
+        	oldDrop = 0;
+    		oldfitView = 0;
+    		olddelete = 0;
+    		oldselectAll = 0;
+        }
+        
+        // pinky
+        if ( pinky == 1){ 
+        	int dir = direction(xRate, yRate);
+        	switch(dir){ 
+        	case 0:			// if left turn workplane 
+            	if (xRate > 85 && oldworkplane == 0){	//works
+            		Tinker.workplane(robot);
+            		oldworkplane = 1;
+            		oldruler = 0;
+            	}
+        		break;
+        		
+        	case 1:// if right turn ruler
+            	if (xRate > 30 && xRate < 50 && oldruler == 0){ //works
+            		Tinker.ruler(robot);
+            		oldruler = 1;
+            		oldworkplane = 0;
+            	}  
+        		break;
+        	}
+        } else if(pinky == 0){
+        	oldruler = 0;
+    		oldworkplane = 0;		 
+        }
+        return;
+    }
+    
+    static int direction(int x, int y){
+    	int dirX, dirY;
+    	if (x > 49) {
+    		x = x - 49;
+    		dirX = 0; // turning left
+    	}
+    	else{
+    		dirX= 1; // Turning right
+    	}
+    	if (y > 49){
+    		y = y - 49;
+    		dirY = 2; // Down
+    	}
+    	else{
+    		dirY = 3; // up 
+    	}
+    	
+    	if (x > y){
+    		return dirX;
+    	} else{
+    		return dirY;
+    	}
+    }
+}
